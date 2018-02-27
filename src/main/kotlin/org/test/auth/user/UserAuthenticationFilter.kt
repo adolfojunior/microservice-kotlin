@@ -13,20 +13,27 @@ import java.io.IOException
 import javax.servlet.FilterChain
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import org.test.auth.ObjectConverter
+import java.io.OutputStream
 
 class UsernameAndPassword(var username: String?, var password: String?) {
 
 	fun isFilled() = !username.isNullOrBlank() || !password.isNullOrBlank()
 }
 
-class UserAuthenticationFilter(var mapper: ObjectMapper) : UsernamePasswordAuthenticationFilter() {
+class UserAuthenticationFilter(val converter: ObjectConverter) : UsernamePasswordAuthenticationFilter() {
 
 	private val log = LoggerFactory.getLogger(UserAuthenticationFilter::class.java)
 
 	init {
-		setAuthenticationSuccessHandler(AuthenticationSuccessHandler { _, _, auth ->
-			val user = (auth as ApplicationUser)
-			log.info("User authenticated: {} -> {}", user.username, user.token)
+		setAuthenticationSuccessHandler(AuthenticationSuccessHandler { _, resp, auth ->
+			(auth as ApplicationUser).let { user ->
+			  log.info("User authenticated: \"{}\" with token \"{}...\"", user.username, user.token.substring(0, 10))
+			  // return the current token
+			  resp.outputStream.let { out ->
+			    converter.writeJson(out, mapOf("token" to user.token))
+			  }
+			}
 		})
 	}
 
@@ -47,7 +54,7 @@ class UserAuthenticationFilter(var mapper: ObjectMapper) : UsernamePasswordAuthe
 
 	@Throws(IOException::class, AuthenticationException::class)
 	fun readUser(request: HttpServletRequest) = try {
-		mapper.readValue(request.inputStream, UsernameAndPassword::class.java)
+		converter.readJson(request.inputStream, UsernameAndPassword::class)
 	} catch (e: Exception) {
 		throw BadCredentialsException("error trying to parse user", e)
 	}.takeIf {

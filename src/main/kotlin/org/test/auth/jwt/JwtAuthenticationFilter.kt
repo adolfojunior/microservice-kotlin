@@ -13,6 +13,8 @@ import javax.naming.AuthenticationException
 import javax.servlet.FilterChain
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import org.test.auth.ObjectConverter
+import org.test.auth.JwtAuthenticationToken
 
 object AuthorizationBearer : RequestMatcher {
 
@@ -24,8 +26,8 @@ object AuthorizationBearer : RequestMatcher {
 	fun token(r: HttpServletRequest): String? {
 		return get(r).takeUnless {
 			it.isNullOrBlank()
-		}.let {
-			pattern.find(it!!)?.groupValues?.get(1)
+		}?.let {
+			pattern.find(it)?.groupValues?.get(1)
 		}
 	}
 
@@ -34,7 +36,7 @@ object AuthorizationBearer : RequestMatcher {
 	}
 }
 
-class JwtAuthenticationFilter(var mapper: ObjectMapper) : AbstractAuthenticationProcessingFilter(AuthorizationBearer) {
+class JwtAuthenticationFilter : AbstractAuthenticationProcessingFilter(AuthorizationBearer) {
 
 	private val log = LoggerFactory.getLogger(JwtAuthenticationFilter::class.java)
 
@@ -50,7 +52,7 @@ class JwtAuthenticationFilter(var mapper: ObjectMapper) : AbstractAuthentication
 		return AuthorizationBearer.token(request).takeUnless {
 			it.isNullOrBlank()
 		}.let {
-			UserAuthenticationToken(token = it)
+			JwtAuthenticationToken(it!!)
 		}.let {
 			authenticationManager.authenticate(it)
 		}

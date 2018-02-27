@@ -7,15 +7,26 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.test.auth.jwt.JwtAuthenticationFilter
 import org.test.auth.user.UserAuthenticationFilter
+import org.test.auth.user.JwtAuthenticationProvider
+import org.test.auth.user.UserAuthenticationProvider
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 
-class WebSecurityConfigurer(val mapper: ObjectMapper) : WebSecurityConfigurerAdapter(false) {
+class WebSecurityConfigurer(
+		val converter: ObjectConverter,
+		val jwtProvider: JwtAuthenticationProvider,
+		val userProvider: UserAuthenticationProvider
+) : WebSecurityConfigurerAdapter(true) {
 
-	fun userFilter() = UserAuthenticationFilter(mapper).apply {
+	fun jwtFilter() = JwtAuthenticationFilter().apply {
 		setAuthenticationManager(authenticationManager())
 	}
-	
-	fun jwtFilter() = JwtAuthenticationFilter(mapper).apply {
+
+	fun userFilter() = UserAuthenticationFilter(converter).apply {
 	  setAuthenticationManager(authenticationManager())
+	}
+	
+	override fun configure(auth: AuthenticationManagerBuilder) {
+		auth.authenticationProvider(jwtProvider).authenticationProvider(userProvider)
 	}
 
 	@Throws(Exception::class)
